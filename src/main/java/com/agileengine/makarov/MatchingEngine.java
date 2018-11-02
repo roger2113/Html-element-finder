@@ -7,8 +7,6 @@ import java.util.logging.Logger;
 
 public class MatchingEngine {
 
-    private static final Logger log = Logger.getLogger(MatchingEngine.class.getName());
-
 
     private static final String ATTRIBUTE_KEY_TITLE = "title";
     private static final String ATTRIBUTE_KEY_TEXT = "text";

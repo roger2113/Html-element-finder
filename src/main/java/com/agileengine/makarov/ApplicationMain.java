@@ -8,12 +8,13 @@ import org.jsoup.select.Elements;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 public class ApplicationMain {
@@ -36,15 +37,20 @@ public class ApplicationMain {
         //And Have "btn" class
         List<Element> buttons = references.stream()
                 .filter(el -> el.attr("class").startsWith("btn"))
-                .collect(Collectors.toList());
+                .collect(toList());
 
         //we filtered elements by all exactly defined params
         //and now we need to find maximum data match with original element
         //let's create checking chain and Element with maximum score will be the answer
         MatchingEngine matchingEngine = new MatchingEngine();
         Optional<Element> winner = matchingEngine.check(originalAttributes, buttons);
-        winner.get().parents().stream().forEach(p -> System.out.println(p.tagName()));
-        winner.ifPresent(element -> log.info("winner :" + element));
+        if (winner.isPresent()) {
+            List<String> path = winner.get().parents().stream().map(Element::nodeName).collect(toList());
+            Collections.reverse(path);
+            log.info("Answer :" + String.join(">", path));
+        } else {
+            log.info("No elements matching found");
+        }
 
     }
 
