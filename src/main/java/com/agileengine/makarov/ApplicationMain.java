@@ -54,7 +54,7 @@ public class ApplicationMain {
                 .toArray();
         for (int i = 0; i < indices.length; i++) {
             if (indices[i] == element.siblingIndex())
-                return i != 0 ? "[" + i + "]" : "";
+                return i == 0 ? "" : "[" + ++i + "]";
         }
         return "";
     }
