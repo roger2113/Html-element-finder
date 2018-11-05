@@ -34,18 +34,35 @@ public class ApplicationMain {
         Optional<Element> result = new FinderService().find(targetElement, elements);
 
         if (result.isPresent()) {
-            List<String> path = result.get().parents().stream().map(Element::nodeName).collect(toList());
+            List<String> path = result.get().parents().stream()
+                    .map(element -> element.nodeName() + defineIndex(element))
+                    .collect(toList());
             Collections.reverse(path);
-            log.info("Element path :" + String.join(">", path));
+            log.info("Element path: /" + String.join("/", path));
         } else {
             log.info("No elements matching found");
         }
     }
 
+    private static String defineIndex(Element element) {
+        Elements siblingElements = element.siblingElements();
+        siblingElements.add(element);
+        int[] indices = siblingElements.stream()
+                .filter(e -> e.nodeName().equals(element.nodeName()))
+                .mapToInt(Element::siblingIndex)
+                .sorted()
+                .toArray();
+        for (int i = 0; i < indices.length; i++) {
+            if (indices[i] == element.siblingIndex())
+                return i != 0 ? "[" + i + "]" : "";
+        }
+        return "";
+    }
+
     private static Element extractElement(String filePath, String elementId) throws IOException, InvalidArgumentsException {
         Document document = getJSoupDocument(filePath);
         Element element = document.getElementById(elementId);
-        if(element == null) {
+        if (element == null) {
             throw new InvalidArgumentsException(String.format("Target element with id '%s' not found", elementId));
         }
         return element;
@@ -55,7 +72,7 @@ public class ApplicationMain {
     private static Elements extractAllElements(String filePath) throws IOException, InvalidArgumentsException {
         Document document = getJSoupDocument(filePath);
         Elements elements = document.getAllElements();
-        if(elements.isEmpty()) {
+        if (elements.isEmpty()) {
             throw new InvalidArgumentsException("Diff file does not contain any HTML element");
         }
         log.info("{} elements found in diff file", elements.size());
@@ -72,7 +89,7 @@ public class ApplicationMain {
             throw new InvalidArgumentsException("Invalid arguments quantity");
         }
 
-        if(args[0].length() < 2 || args[1].length() < 2) {
+        if (args[0].length() < 2 || args[1].length() < 2) {
             throw new InvalidArgumentsException("Invalid file path(s)");
         }
     }
