@@ -42,11 +42,11 @@ public class ApplicationMain {
         }
     }
 
-    private static Element extractElement(String filePath, String targetElementId) throws IOException, InvalidArgumentsException {
+    private static Element extractElement(String filePath, String elementId) throws IOException, InvalidArgumentsException {
         Document document = getJSoupDocument(filePath);
-        Element element = document.getElementById(targetElementId);
+        Element element = document.getElementById(elementId);
         if(element == null) {
-            throw new InvalidArgumentsException(String.format("Target element with id '%s' not found", targetElementId));
+            throw new InvalidArgumentsException(String.format("Target element with id '%s' not found", elementId));
         }
         return element;
 
