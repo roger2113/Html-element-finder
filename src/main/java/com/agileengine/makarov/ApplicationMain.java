@@ -1,7 +1,7 @@
 package com.agileengine.makarov;
 
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -10,62 +10,88 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.logging.Logger;
 
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 
+@Slf4j
 public class ApplicationMain {
 
-    private static final Logger log = Logger.getLogger(ApplicationMain.class.getName());
-    private static final String BUTTON_ID = "make-everything-ok-button";
-
+    private static final String TARGET_ELEMENT_ID = "make-everything-ok-button";
 
     public static void main(String[] args) throws IOException, InvalidArgumentsException {
-        if (args.length < 2 || args.length > 3) {
-            throw new InvalidArgumentsException("Error - invalid arguments quantity");
-        }
+        validateArgs(args);
 
-        Map<String, String> originalAttributes = extractOriginalButtonAttributes(args[0]);
-        Document diffPage = getJSoupDocument(args[1]);
+        String originalFilePath = args[0];
+        String diffFilePath = args[1];
+        String targetElementId = args.length == 3 ? args[2] : TARGET_ELEMENT_ID;
+        log.info("Searching element by id '{}'", targetElementId);
 
-        //Task example shows us, that all searched elements are in <a> tag
-        Elements references = diffPage.getElementsByTag("a");
+        Element targetElement = extractElement(originalFilePath, targetElementId);
+        log.info("Original element found:{}", targetElement);
 
-        //And Have "btn" class
-        List<Element> buttons = references.stream()
-                .filter(el -> el.attr("class").startsWith("btn"))
-                .collect(toList());
+        Elements elements = extractAllElements(diffFilePath);
+        Optional<Element> result = new FinderService().find(targetElement, elements);
 
-        //we filtered elements by all exactly defined params
-        //and now we need to find maximum data match with original element
-        //let's create checking chain and Element with maximum score will be the answer
-        MatchingEngine matchingEngine = new MatchingEngine();
-        Optional<Element> winner = matchingEngine.check(originalAttributes, buttons);
-        if (winner.isPresent()) {
-            List<String> path = winner.get().parents().stream().map(Element::nodeName).collect(toList());
+        if (result.isPresent()) {
+            List<String> path = result.get().parents().stream()
+                    .map(element -> element.nodeName() + defineIndex(element))
+                    .collect(toList());
             Collections.reverse(path);
-            log.info("Answer :" + String.join(">", path));
+            log.info("Element path: /" + String.join("/", path));
         } else {
             log.info("No elements matching found");
         }
+    }
+
+    private static String defineIndex(Element element) {
+        Elements siblingElements = element.siblingElements();
+        siblingElements.add(element);
+        int[] indices = siblingElements.stream()
+                .filter(e -> e.nodeName().equals(element.nodeName()))
+                .mapToInt(Element::siblingIndex)
+                .sorted()
+                .toArray();
+        for (int i = 0; i < indices.length; i++) {
+            if (indices[i] == element.siblingIndex())
+                return i == 0 ? "" : "[" + ++i + "]";
+        }
+        return "";
+    }
+
+    private static Element extractElement(String filePath, String elementId) throws IOException, InvalidArgumentsException {
+        Document document = getJSoupDocument(filePath);
+        Element element = document.getElementById(elementId);
+        if (element == null) {
+            throw new InvalidArgumentsException(String.format("Target element with id '%s' not found", elementId));
+        }
+        return element;
 
     }
 
-    private static Map<String, String> extractOriginalButtonAttributes(String originalFilePath) throws IOException {
-        Document document = getJSoupDocument(originalFilePath);
+    private static Elements extractAllElements(String filePath) throws IOException, InvalidArgumentsException {
+        Document document = getJSoupDocument(filePath);
+        Elements elements = document.getAllElements();
+        if (elements.isEmpty()) {
+            throw new InvalidArgumentsException("Diff file does not contain any HTML element");
+        }
+        log.info("{} elements found in diff file", elements.size());
+        return elements;
 
-        Element element = document.getElementById(BUTTON_ID);
-        Map<String, String> attributes = element.attributes().asList().stream()
-                .collect(toMap(Attribute::getKey, Attribute::getValue));
-
-        attributes.put("text", element.text());
-        return attributes;
     }
 
     private static Document getJSoupDocument(String filePath) throws IOException {
         return Jsoup.parse(new File(filePath), "UTF-8");
     }
+
+    private static void validateArgs(String[] args) throws InvalidArgumentsException {
+        if (args.length < 2 || args.length > 3) {
+            throw new InvalidArgumentsException("Invalid arguments quantity");
+        }
+
+        if (args[0].length() < 2 || args[1].length() < 2) {
+            throw new InvalidArgumentsException("Invalid file path(s)");
+        }
+    }
+
 }
